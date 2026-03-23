@@ -1,211 +1,145 @@
-# ws scrcpy
+# ws-scrcpy (Docker Fork)
 
-Web client for [Genymobile/scrcpy][scrcpy] and more.
+> 🍴 **Fork of [NetrisTV/ws-scrcpy][upstream]** — Updated for 2025 with Docker-first deployment
 
-## Requirements
+Web client for [Genymobile/scrcpy][scrcpy] that lets you view and control Android devices from your browser.
 
-Browser must support the following technologies:
-* WebSockets
-* Media Source Extensions and h264 decoding;
-* WebWorkers
-* WebAssembly
+## What's Different in This Fork?
 
-Server:
-* Node.js v10+
-* node-gyp ([installation](https://github.com/nodejs/node-gyp#installation))
-* `adb` executable must be available in the PATH environment variable
+- **Docker-first deployment** — Single command to get running
+- **Updated dependencies** — Node.js 18, modern npm packages, security patches
+- **2025-ready** — Fixes for deprecated APIs and build issues
+- **Multi-stage Docker build** — Optimized image size
+- **USB passthrough** — Direct device access without privileged mode
 
-Device:
-* Android 5.0+ (API 21+)
-* Enabled [adb debugging](https://developer.android.com/studio/command-line/adb.html#Enabling)
-* On some devices, you also need to enable
-[an additional option](https://github.com/Genymobile/scrcpy/issues/70#issuecomment-373286323)
-to control it using keyboard and mouse.
+## Quick Start
 
-## Build and Start
+### Docker (Recommended)
 
-Make sure you have installed [node.js](https://nodejs.org/en/download/),
-[node-gyp](https://github.com/nodejs/node-gyp) and
-[build tools](https://github.com/nodejs/node-gyp#installation)
 ```shell
-git clone https://github.com/NetrisTV/ws-scrcpy.git
+git clone https://github.com/n1n3b1t/ws-scrcpy
 cd ws-scrcpy
-
-## For stable version find latest tag and switch to it:
-# git tag -l
-# git checkout vX.Y.Z
-
-npm install
-npm start
+docker compose up -d
 ```
 
-## Supported features
+Open http://localhost:8233 in your browser.
+
+> **Note:** USB passthrough requires a Linux host. For macOS/Windows, use [ADB over network](#adb-over-network).
+
+### Manual Installation
+
+```shell
+git clone https://github.com/n1n3b1t/ws-scrcpy
+cd ws-scrcpy
+npm install
+npm run dist
+cd dist && npm start
+```
+
+**Requirements:** Node.js v18+, [node-gyp](https://github.com/nodejs/node-gyp#installation), `adb` in PATH
+
+## Features
 
 ### Android
+- **Screen casting** - H264 streaming with multiple decoder options (Mse, Broadway, TinyH264, WebCodecs)
+- **Remote control** - Touch, multi-touch, keyboard, mouse, clipboard
+- **File management** - Push APKs, list/upload/download files
+- **Remote shell** - ADB shell in browser via [xterm.js][xterm.js]
+- **DevTools** - Debug WebPages/WebView ([details](/docs/Devtools.md))
 
-#### Screen casting
-The modified [version][fork] of [Genymobile/scrcpy][scrcpy] used to stream
-H264-video, which then decoded by one of included decoders:
+### iOS (Experimental)
+- Screen casting via [ws-qvh][ws-qvh] or MJPEG
+- Basic remote control via [WebDriverAgent][WebDriverAgent]
 
-##### Mse Player
+*iOS support is not built by default. See [Custom Build](#custom-build).*
 
-Based on [xevokk/h264-converter][xevokk/h264-converter].
-HTML5 Video.<br>
-Requires [Media Source API][MSE] and `video/mp4; codecs="avc1.42E01E"`
-[support][isTypeSupported]. Creates mp4 containers from NALU, received from a
-device, then feeds them to [MediaSource][MediaSource]. In theory, it can use
-hardware acceleration.
+## Configuration
 
-##### Broadway Player
+Set `WS_SCRCPY_CONFIG` environment variable to specify a config file path.
+Set `WS_SCRCPY_PATHNAME` for custom base URL path.
 
-Based on [mbebenita/Broadway][broadway] and
-[131/h264-live-player][h264-live-player].<br>
-Software video-decoder compiled into wasm-module.
-Requires [WebAssembly][wasm] and preferably [WebGL][webgl] support.
+See [config.example.yaml](/config.example.yaml) for format.
 
-##### TinyH264 Player
+## Docker Details
 
-Based on [udevbe/tinyh264][tinyh264].<br>
-Software video-decoder compiled into wasm-module. A slightly updated version of
-[mbebenita/Broadway][broadway].
-Requires [WebAssembly][wasm], [WebWorkers][workers], [WebGL][webgl] support.
+The `docker-compose.yml` provides:
+- Port `8233` for web interface
+- USB passthrough for ADB (Linux host required)
+- Persistent ADB keys in `./adb-keys`
+- Optional config via `./config.yaml`
 
-##### WebCodecs Player
+```shell
+docker compose logs -f                      # View logs
+docker compose down                         # Stop
+docker compose exec ws-scrcpy adb devices   # Check connected devices
+docker compose build --no-cache             # Rebuild image
+```
 
-Decoding is done by browser built-in (software/hardware) media decoder.
-Requires [WebCodecs][webcodecs] support. At the moment, available only in
-[Chromium](https://www.chromestatus.com/feature/5669293909868544) and derivatives.
+### ADB over Network
 
-#### Remote control
-* Touch events (including multi-touch)
-* Multi-touch emulation: <kbd>CTRL</kbd> to start with center at the center of
-the screen, <kbd>SHIFT</kbd> + <kbd>CTRL</kbd> to start with center at the
-current point
-* Mouse wheel and touchpad vertical/horizontal scrolling
-* Capturing keyboard events
-* Injecting text (ASCII only)
-* Copy to/from device clipboard
-* Device "rotation"
+For macOS/Windows hosts (no USB passthrough), connect devices via TCP/IP:
 
-#### File push
-Drag & drop an APK file to push it to the `/data/local/tmp` directory. You can
-install it manually from the included [xtermjs/xterm.js][xterm.js] terminal
-emulator (see below).
+1. Connect device to same network as host
+2. Enable wireless debugging on device (Android 11+) or run `adb tcpip 5555`
+3. Configure in `config.yaml`:
 
-#### Remote shell
-Control your device from `adb shell` in your browser.
+```yaml
+remoteAdbHostList:
+  - '192.168.1.100:5555'  # Your device IP
+```
 
-#### Debug WebPages/WebView
-[/docs/Devtools.md](/docs/Devtools.md)
-
-#### File listing
-* List files
-* Upload files by drag & drop
-* Download files
-
-### iOS
-
-***Experimental Feature***: *is not built by default*
-(see [custom build](#custom-build))
-
-#### Screen Casting
-
-Requires [ws-qvh][ws-qvh] available in `PATH`.
-
-#### MJPEG Server
-
-Enable `USE_WDA_MJPEG_SERVER` in the build configuration file
-(see [custom build](#custom-build)).
-
-Alternative way to stream screen content. It does not
-require additional software as `ws-qvh`, but may require more resources as each
-frame encoded as jpeg image.
-
-#### Remote control
-
-To control device we use [appium/WebDriverAgent][WebDriverAgent].
-Functionality limited to:
-* Simple touch
-* Scroll
-* Home button click
-
-Make sure you did properly [setup WebDriverAgent](https://appium.io/docs/en/drivers/ios-xcuitest-real-devices/).
-WebDriverAgent project is located under `node_modules/appium-webdriveragent/`.
-
-You might want to enable `AssistiveTouch` on your device: `Settings/General/Accessibility`.
+4. Restart the container: `docker compose restart`
 
 ## Custom Build
 
-You can customize project before build by overriding the
-[default configuration](/webpack/default.build.config.json) in
-[build.config.override.json](/build.config.override.json):
-* `INCLUDE_APPL` - include code for iOS device tracking and control
-* `INCLUDE_GOOG` - include code for Android device tracking and control
-* `INCLUDE_ADB_SHELL` - [remote shell](#remote-shell) for android devices
-([xtermjs/xterm.js][xterm.js], [Tyriar/node-pty][node-pty])
-* `INCLUDE_DEV_TOOLS` - [dev tools](#debug-webpageswebview) for web pages and
-web views on android devices
-* `INCLUDE_FILE_LISTING` - minimalistic [file management](#file-listing)
-* `USE_BROADWAY` - include [Broadway Player](#broadway-player)
-* `USE_H264_CONVERTER` - include [Mse Player](#mse-player)
-* `USE_TINY_H264` - include [TinyH264 Player](#tinyh264-player)
-* `USE_WEBCODECS` - include [WebCodecs Player](#webcodecs-player)
-* `USE_WDA_MJPEG_SERVER` - configure WebDriverAgent to start MJPEG server
-* `USE_QVH_SERVER` - include support for [ws-qvh][ws-qvh]
-* `SCRCPY_LISTENS_ON_ALL_INTERFACES` - WebSocket server in `scrcpy-server.jar`
-will listen for connections on all available interfaces. When `true`, it allows
-connecting to device directly from a browser. Otherwise, the connection must be
-established over adb.
+Override [default configuration](/webpack/default.build.config.json) in [build.config.override.json](/build.config.override.json):
 
-## Run configuration
+| Option | Description |
+|--------|-------------|
+| `INCLUDE_APPL` | iOS device support |
+| `INCLUDE_GOOG` | Android device support |
+| `INCLUDE_ADB_SHELL` | Remote shell |
+| `INCLUDE_DEV_TOOLS` | WebView debugging |
+| `INCLUDE_FILE_LISTING` | File management |
+| `USE_BROADWAY` | Broadway Player |
+| `USE_H264_CONVERTER` | Mse Player |
+| `USE_TINY_H264` | TinyH264 Player |
+| `USE_WEBCODECS` | WebCodecs Player |
+| `USE_WDA_MJPEG_SERVER` | iOS MJPEG streaming |
+| `USE_QVH_SERVER` | ws-qvh support |
+| `SCRCPY_LISTENS_ON_ALL_INTERFACES` | Direct browser connection |
 
-You can specify a path to a configuration file in `WS_SCRCPY_CONFIG`
-environment variable.
+## Requirements
 
-If you want to have another pathname than "/" you can specify it in the
-`WS_SCRCPY_PATHNAME` environment variable.
+**Browser:** WebSockets, Media Source Extensions, WebWorkers, WebAssembly
 
-Configuration file format: [Configuration.d.ts](/src/types/Configuration.d.ts).
+**Device:** Android 5.0+ with [USB debugging enabled](https://developer.android.com/studio/command-line/adb.html#Enabling)
 
-Configuration file example: [config.example.yaml](/config.example.yaml).
+## Known Issues
 
-## Known issues
+- Android Emulator: Select "proxy over adb" from interfaces list
+- TinyH264Player may fail to start - reload the page
+- Safari: File upload shows no progress
 
-* The server on the Android Emulator listens on the internal interface and not
-available from the outside. Select `proxy over adb` from the interfaces list.
-* TinyH264Player may fail to start, try to reload the page.
-* MsePlayer reports too many dropped frames in quality statistics: needs
-further investigation.
-* On Safari file upload does not show progress (it works in one piece).
+## Security Warning
 
-## Security warning
-Be advised and keep in mind:
-* There is no encryption between browser and node.js server (you can [configure](#run-configuration) HTTPS).
-* There is no encryption between browser and WebSocket server on android device.
-* There is no authorization on any level.
-* The modified version of scrcpy with integrated WebSocket server is listening
-for connections on all network interfaces (see [custom build](#custom-build)).
-* The modified version of scrcpy will keep running after the last client
-disconnected.
+ No encryption or authorization by default. Consider:
+- [Configuring HTTPS](#configuration)
+- Network-level security
+- The scrcpy WebSocket server listens on all interfaces
 
-## Related projects
-* [Genymobile/scrcpy][scrcpy]
-* [xevokk/h264-converter][xevokk/h264-converter]
-* [131/h264-live-player][h264-live-player]
-* [mbebenita/Broadway][broadway]
-* [DeviceFarmer/adbkit][adbkit]
-* [xtermjs/xterm.js][xterm.js]
-* [udevbe/tinyh264][tinyh264]
-* [danielpaulus/quicktime_video_hack][qvh]
+## Related Projects
 
-## scrcpy websocket fork
+[scrcpy][scrcpy] • [xterm.js][xterm.js] • [Broadway][broadway] • [tinyh264][tinyh264] • [adbkit][adbkit]
 
-Currently, support of WebSocket protocol added to v1.19 of scrcpy
-* [Prebuilt package](/vendor/Genymobile/scrcpy/scrcpy-server.jar)
-* [Source code][fork]
+## Credits
 
+This is a fork of [NetrisTV/ws-scrcpy][upstream], updated for 2025 with Docker support.
+
+**scrcpy WebSocket fork:** Based on scrcpy v1.19 ([Source][fork] | [Prebuilt](/vendor/Genymobile/scrcpy/scrcpy-server.jar))
+
+[upstream]: https://github.com/NetrisTV/ws-scrcpy
 [fork]: https://github.com/NetrisTV/scrcpy/tree/feature/websocket-v1.19.x
-
 [scrcpy]: https://github.com/Genymobile/scrcpy
 [xevokk/h264-converter]: https://github.com/xevokk/h264-converter
 [h264-live-player]: https://github.com/131/h264-live-player
@@ -217,7 +151,6 @@ Currently, support of WebSocket protocol added to v1.19 of scrcpy
 [WebDriverAgent]: https://github.com/appium/WebDriverAgent
 [qvh]: https://github.com/danielpaulus/quicktime_video_hack
 [ws-qvh]: https://github.com/NetrisTV/ws-qvh
-
 [MSE]: https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API
 [isTypeSupported]: https://developer.mozilla.org/en-US/docs/Web/API/MediaSource/isTypeSupported
 [MediaSource]: https://developer.mozilla.org/en-US/docs/Web/API/MediaSource
