@@ -121,6 +121,9 @@ export class GoogToolBox extends ToolBox {
             const element = el.getElement();
             client.setHandleKeyboardEvents(element.checked);
         });
+        // Default-on: enable keyboard forwarding as soon as the stream UI is ready.
+        keyboard.getElement().checked = true;
+        client.setHandleKeyboardEvents(true);
         elements.push(keyboard);
 
         if (moreBox) {

@@ -53,6 +53,7 @@ export class StreamClientScrcpy
     private clientId = -1;
     private clientsCount = -1;
     private joinedStream = false;
+    private screenPoweredOff = false;
     private requestedVideoSettings?: VideoSettings;
     private touchHandler?: FeaturedInteractionHandler;
     private moreBox?: GoogMoreBox;
@@ -177,6 +178,14 @@ export class StreamClientScrcpy
         }
         if (this.player.getState() === STATE.PLAYING) {
             this.player.pushFrame(new Uint8Array(data));
+            if (!this.screenPoweredOff) {
+                // Once the stream is actually flowing, turn the physical display off.
+                // setDisplayPowerMode(OFF) also powers down the touch digitizer on most
+                // devices, so local touches don't register while streaming — scrcpy's
+                // capture surface keeps running so the browser still sees the screen.
+                this.screenPoweredOff = true;
+                this.sendMessage(CommandControlMessage.createSetScreenPowerModeCommand(false));
+            }
         }
     };
 
