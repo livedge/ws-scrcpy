@@ -3,13 +3,14 @@ import * as readline from 'readline';
 import { Config } from './Config';
 import { HttpServer } from './services/HttpServer';
 import { WebSocketServer } from './services/WebSocketServer';
+import { AdminServer } from './services/AdminServer';
 import { Service, ServiceClass } from './services/Service';
 import { MwFactory } from './mw/Mw';
 import { WebsocketProxy } from './mw/WebsocketProxy';
 import { HostTracker } from './mw/HostTracker';
 import { WebsocketMultiplexer } from './mw/WebsocketMultiplexer';
 
-const servicesToStart: ServiceClass[] = [HttpServer, WebSocketServer];
+const servicesToStart: ServiceClass[] = [HttpServer, WebSocketServer, AdminServer];
 
 // MWs that accept WebSocket
 const mwList: MwFactory[] = [WebsocketProxy, WebsocketMultiplexer];

@@ -24,6 +24,10 @@ export class AdminServer implements Service {
         return AdminServer.instance;
     }
 
+    public static hasInstance(): boolean {
+        return !!AdminServer.instance;
+    }
+
     public getName(): string {
         return 'Admin Server';
     }
